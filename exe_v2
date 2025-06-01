@@ -1,0 +1,222 @@
+"""
+Post-Paid Billing Date Calculator for Jupyter Notebooks
+================================================================
+
+This interactive tool calculates key billing dates for Post-Paid wireless customers 
+based on a provided a billing cycle start date (MM/DD/YYYY). It also offers optional 
+AES-256 GCM encryption of the billing data. Designed for use on 64-bit Debian-based 
+ParrotOS (previous release version) running as a live USB with persistence and encryption,
+this version is tailored for interactive environments such as Jupyter and Google Colab.
+
+Requirements:
+  - Python 3.7+
+  - cryptography library (install via: !pip install cryptography)
+"""
+
+import datetime
+import os
+import json
+import base64
+import logging
+from typing import Dict
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+# Configure logging for notebook cell outputs.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
+
+
+def calculate_billing_dates(start_date: datetime.date) -> Dict[str, datetime.date]:
+    """
+    Calculate key billing dates for T-Mobile Post-Paid customers.
+    
+    Parameters:
+        start_date (datetime.date): The billing cycle start date.
+        
+    Returns:
+        dict: Billing dates including:
+            - billing_cycle_start: Input date.
+            - bill_in_tlife_app: 4 days later.
+            - funds_avail_pre_ap: 16 days later.
+            - autopay_draft: 18th day including the initial day (start_date + 17 days).
+            - billing_cycle_close: 30 days later.
+            - service_suspension_risk: 37 days later.
+            - number_loss_risk: 90 days later.
+    """
+    return {
+        "billing_cycle_start": start_date,
+        "bill_in_tlife_app": start_date + datetime.timedelta(days=4),
+        "funds_avail_pre_ap": start_date + datetime.timedelta(days=16),
+        "autopay_draft": start_date + datetime.timedelta(days=17),  # Day 1 is the input date.
+        "billing_cycle_close": start_date + datetime.timedelta(days=30),
+        "service_suspension_risk": start_date + datetime.timedelta(days=37),
+        "number_loss_risk": start_date + datetime.timedelta(days=90)
+    }
+
+
+def derive_key(password: str, salt: bytes) -> bytes:
+    """
+    Derive a secure AES-256 key from a given password using PBKDF2HMAC with SHA256.
+    
+    Parameters:
+        password (str): The password.
+        salt (bytes): A randomly generated 16-byte salt.
+        
+    Returns:
+        bytes: A 32-byte key for AES-256 encryption.
+    """
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,  # 256-bit key for AES-256
+        salt=salt,
+        iterations=100000,
+    )
+    return kdf.derive(password.encode())
+
+
+def encrypt_data(key: bytes, plaintext: str) -> (bytes, bytes):
+    """
+    Encrypt plaintext using AES-256 in GCM mode.
+    
+    Parameters:
+        key (bytes): A 32-byte AES-256 key.
+        plaintext (str): The plaintext to encrypt.
+        
+    Returns:
+        tuple: (nonce, ciphertext) where nonce is 12 bytes long.
+    """
+    aesgcm = AESGCM(key)
+    nonce = os.urandom(12)  # 96-bit nonce recommended for GCM.
+    ciphertext = aesgcm.encrypt(nonce, plaintext.encode(), None)
+    return nonce, ciphertext
+
+
+def decrypt_data(key: bytes, nonce: bytes, ciphertext: bytes) -> str:
+    """
+    Decrypt ciphertext using AES-256 in GCM mode.
+    
+    Parameters:
+        key (bytes): The decryption key.
+        nonce (bytes): The nonce used at encryption time.
+        ciphertext (bytes): The data to decrypt.
+        
+    Returns:
+        str: The decrypted plaintext.
+    """
+    aesgcm = AESGCM(key)
+    plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+    return plaintext.decode()
+
+
+def encrypt_billing_data(billing_data: dict, password: str) -> dict:
+    """
+    Encrypt billing data (as JSON) using AES-256 GCM.
+    
+    Parameters:
+        billing_data (dict): The billing dates data.
+        password (str): Password to derive the encryption key.
+        
+    Returns:
+        dict: Contains base64-encoded salt, nonce, and ciphertext.
+    """
+    # Convert billing data to JSON string with dates formatted as strings.
+    billing_data_str = json.dumps({k: v.strftime("%m/%d/%Y") for k, v in billing_data.items()}, indent=2)
+    salt = os.urandom(16)  # 128-bit salt.
+    key = derive_key(password, salt)
+    nonce, ciphertext = encrypt_data(key, billing_data_str)
+    return {
+        "salt": base64.b64encode(salt).decode('utf-8'),
+        "nonce": base64.b64encode(nonce).decode('utf-8'),
+        "ciphertext": base64.b64encode(ciphertext).decode('utf-8')
+    }
+
+
+def decrypt_billing_data(encrypted_data: dict, password: str) -> dict:
+    """
+    Decrypt the encrypted JSON billing data.
+    
+    Parameters:
+        encrypted_data (dict): Contains base64-encoded salt, nonce, and ciphertext.
+        password (str): Password to derive the decryption key.
+        
+    Returns:
+        dict: The decrypted billing data.
+    """
+    salt = base64.b64decode(encrypted_data["salt"])
+    nonce = base64.b64decode(encrypted_data["nonce"])
+    ciphertext = base64.b64decode(encrypted_data["ciphertext"])
+    key = derive_key(password, salt)
+    decrypted_text = decrypt_data(key, nonce, ciphertext)
+    return json.loads(decrypted_text)
+
+
+def run_notebook_interface():
+    """
+    Interactive interface for use in Jupyter notebooks and Colab.
+    
+    Users can select the 'calculate' mode to compute billing dates (with optional encryption)
+    or 'decrypt' mode to decrypt an existing encrypted JSON file.
+    """
+    print("\n====== T-Mobile Post-Paid Billing Date Calculator ======\n")
+    mode = input("Choose mode ('calculate' or 'decrypt'): ").strip().lower()
+
+    if mode == "decrypt":
+        file_path = input("Enter the path to the encrypted JSON file: ").strip()
+        if not file_path:
+            print("No file path provided. Aborting decryption.")
+            return
+        password = input("Enter password for decryption: ").strip()
+        try:
+            with open(file_path, "r") as f:
+                encrypted_data = json.load(f)
+            decrypted_data = decrypt_billing_data(encrypted_data, password)
+            print("\nDecrypted Billing Data:")
+            print(json.dumps(decrypted_data, indent=2))
+        except Exception as e:
+            print("\nError during decryption:", e)
+
+    elif mode == "calculate":
+        date_str = input("Enter billing cycle start date (MM/DD/YYYY): ").strip()
+        try:
+            input_date = datetime.datetime.strptime(date_str, "%m/%d/%Y").date()
+        except ValueError:
+            print("Invalid date format. Please use MM/DD/YYYY.")
+            return
+
+        billing_data = calculate_billing_dates(input_date)
+        print("\nCalculated Billing Dates:")
+        for key, value in billing_data.items():
+            print(f"  {key}: {value.strftime('%m/%d/%Y')}")
+
+        encrypt_choice = input("\nDo you want to encrypt the output? (yes/no): ").strip().lower()
+        if encrypt_choice in ["yes", "y"]:
+            password = input("Enter encryption password: ").strip()
+            encrypted_output = encrypt_billing_data(billing_data, password)
+            print("\nEncrypted Billing Data (JSON format):")
+            print(json.dumps(encrypted_output, indent=2))
+            file_save_choice = input("\nDo you want to save the encrypted data to a file? (yes/no): ").strip().lower()
+            if file_save_choice in ["yes", "y"]:
+                file_out = input("Enter output file name (e.g., billing_encrypted.json): ").strip()
+                try:
+                    with open(file_out, "w") as f:
+                        json.dump(encrypted_output, f, indent=2)
+                    print(f"Encrypted data saved to {file_out}")
+                except Exception as e:
+                    print("Error writing to file:", e)
+        else:
+            file_save_choice = input("\nDo you want to save the calculated billing data to a file? (yes/no): ").strip().lower()
+            if file_save_choice in ["yes", "y"]:
+                file_out = input("Enter output file name (e.g., billing_data.json): ").strip()
+                try:
+                    with open(file_out, "w") as f:
+                        json.dump({k: v.strftime("%m/%d/%Y") for k, v in billing_data.items()}, f, indent=2)
+                    print(f"Billing data saved to {file_out}")
+                except Exception as e:
+                    print("Error writing to file:", e)
+    else:
+        print("Invalid mode selected. Please choose either 'calculate' or 'decrypt'.")
+
+
+# Run the interactive interface (this call is intended for Jupyter Notebook / Google Colab usage)
+run_notebook_interface()
