@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+"""
+T-Mobile Post-Paid Billing Date Calculator
+============================================
+
+This script calculates all critical billing dates for T-Mobile Post-Paid
+customers based on a given billing cycle start date (format: MM/DD/YYYY).
+For enhanced security, it can also encrypt the billing information using
+AES-256 in GCM mode. The design is modular and scalable, making it ideal for
+integration in larger billing systems.
+
+Features:
+  • Scalability: Modular functions easily integrated into enterprise systems.
+  • Security: Uses AES-256 GCM encryption with PBKDF2 key derivation.
+  • Open Source: Written in Python with clear function boundaries.
+  • Tailored for T-Mobile: Designed for Post-Paid (Bill Current) customers.
+"""
+
+import argparse
+import datetime
+import os
+import json
+import logging
+import base64
+from typing import Dict
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+# Configure logging for clear, timestamped messages.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
+
+
+def calculate_billing_dates(start_date: datetime.date) -> Dict[str, datetime.date]:
+    """
+    Calculate key billing dates for T-Mobile Post-Paid customers.
+
+    Parameters:
+        start_date (datetime.date): The initial billing cycle start date.
+
+    Returns:
+        dict: A dictionary with calculated dates:
+            - billing_cycle_start: The input date.
+            - bill_in_tlife_app: 4 days later (bill pops in T-Life App).
+            - funds_avail_pre_ap: 16 days later.
+            - autopay_draft: 18th day including the initial day (input + 17 days).
+            - billing_cycle_close: 30 days later.
+            - service_suspension_risk: 37 days later.
+            - number_loss_risk: 90 days later.
+    """
+    return {
+        "billing_cycle_start": start_date,
+        "bill_in_tlife_app": start_date + datetime.timedelta(days=4),
+        "funds_avail_pre_ap": start_date + datetime.timedelta(days=16),
+        "autopay_draft": start_date + datetime.timedelta(days=17),  # Day 1 is the input date.
+        "billing_cycle_close": start_date + datetime.timedelta(days=30),
+        "service_suspension_risk": start_date + datetime.timedelta(days=37),
+        "number_loss_risk": start_date + datetime.timedelta(days=90)
+    }
+
+
+def derive_key(password: str, salt: bytes) -> bytes:
+    """
+    Derive a secure AES-256 key from a given password using PBKDF2HMAC.
+
+    Parameters:
+        password (str): The password to derive the key from.
+        salt (bytes): A randomly generated salt.
+
+    Returns:
+        bytes: A 32-byte AES-256 key.
+    """
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,  # 256-bit key for AES-256
+        salt=salt,
+        iterations=100000,
+    )
+    return kdf.derive(password.encode())
+
+
+def encrypt_data(key: bytes, plaintext: str) -> (bytes, bytes):
+    """
+    Encrypt plaintext using AES-256 in GCM mode.
+
+    Parameters:
+        key (bytes): A 32-byte encryption key.
+        plaintext (str): The text to encrypt.
+
+    Returns:
+        tuple: (nonce, ciphertext) where nonce is 12-bytes long.
+    """
+    aesgcm = AESGCM(key)
+    nonce = os.urandom(12)  # 96 bits, recommended for GCM.
+    ciphertext = aesgcm.encrypt(nonce, plaintext.encode(), None)
+    return nonce, ciphertext
+
+
+def decrypt_data(key: bytes, nonce: bytes, ciphertext: bytes) -> str:
+    """
+    Decrypt ciphertext using AES-256 in GCM mode.
+
+    Parameters:
+        key (bytes): The decryption key.
+        nonce (bytes): The nonce used during encryption.
+        ciphertext (bytes): The encrypted data.
+
+    Returns:
+        str: The decrypted plaintext.
+    """
+    aesgcm = AESGCM(key)
+    plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+    return plaintext.decode()
+
+
+def encrypt_billing_data(billing_data: dict, password: str) -> dict:
+    """
+    Encrypt the billing data as JSON using AES-256 GCM.
+
+    Parameters:
+        billing_data (dict): Dictionary of billing dates.
+        password (str): Password to derive the encryption key.
+
+    Returns:
+        dict: Contains the base64-encoded salt, nonce, and ciphertext.
+    """
+    # Convert billing data to JSON string (format dates as strings).
+    billing_data_str = json.dumps({k: v.strftime("%m/%d/%Y") for k, v in billing_data.items()}, indent=2)
+    salt = os.urandom(16)  # 128-bit salt
+    key = derive_key(password, salt)
+    nonce, ciphertext = encrypt_data(key, billing_data_str)
+    return {
+        "salt": base64.b64encode(salt).decode('utf-8'),
+        "nonce": base64.b64encode(nonce).decode('utf-8'),
+        "ciphertext": base64.b64encode(ciphertext).decode('utf-8')
+    }
+
+
+def decrypt_billing_data(encrypted_data: dict, password: str) -> dict:
+    """
+    Decrypt the billing data JSON using AES-256 GCM.
+
+    Parameters:
+        encrypted_data (dict): Dictionary containing base64-encoded salt, nonce, and ciphertext.
+        password (str): Password to derive the decryption key.
+
+    Returns:
+        dict: The decrypted billing data.
+    """
+    salt = base64.b64decode(encrypted_data["salt"])
+    nonce = base64.b64decode(encrypted_data["nonce"])
+    ciphertext = base64.b64decode(encrypted_data["ciphertext"])
+    key = derive_key(password, salt)
+    decrypted_text = decrypt_data(key, nonce, ciphertext)
+    return json.loads(decrypted_text)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="T-Mobile Post-Paid Billing Date Calculator for Account Associates\n"
+                    "Calculates critical billing dates and optionally encrypts/decrypts the billing data for enhanced security."
+    )
+
+    # Mutually exclusive group: either calculate (via --date) or decrypt (via --decrypt)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--date', type=str, help="Billing cycle start date in MM/DD/YYYY format.")
+    group.add_argument('--decrypt', type=str, help="Path to the encrypted JSON file to decrypt (requires --password).")
+
+    parser.add_argument('--encrypt', action='store_true',
+                        help="Encrypt the output billing data using AES-256 GCM.")
+    parser.add_argument('--password', type=str,
+                        help="Password used for encryption/decryption (required if using --encrypt or --decrypt).")
+    parser.add_argument('--output', type=str,
+                        help="Optional file path to save the output (JSON format).")
+
+    args = parser.parse_args()
+
+    # Decryption mode
+    if args.decrypt:
+        if not args.password:
+            logging.error("Decryption requires a password. Use the --password argument.")
+            exit(1)
+        try:
+            with open(args.decrypt, "r") as f:
+                encrypted_data = json.load(f)
+            decrypted_data = decrypt_billing_data(encrypted_data, args.password)
+            print("Decrypted Billing Data:")
+            print(json.dumps(decrypted_data, indent=2))
+        except Exception as e:
+            logging.error(f"Error during decryption: {e}")
+            exit(1)
+    else:
+        # Calculation mode: parse the input date and calculate billing dates.
+        try:
+            input_date = datetime.datetime.strptime(args.date, "%m/%d/%Y").date()
+        except ValueError:
+            logging.error("Invalid date format. Please use MM/DD/YYYY.")
+            exit(1)
+
+        billing_data = calculate_billing_dates(input_date)
+        logging.info("Calculated billing dates for T-Mobile Post-Paid (Bill Current) customers.")
+
+        # Encrypt output if requested.
+        if args.encrypt:
+            if not args.password:
+                logging.error("Encryption requires a password. Use the --password argument.")
+                exit(1)
+            output_data = encrypt_billing_data(billing_data, args.password)
+        else:
+            # Convert each billing date to a string for pretty-printing.
+            output_data = {key: value.strftime("%m/%d/%Y") for key, value in billing_data.items()}
+
+        # Write output to file if specified; otherwise, print JSON to console.
+        if args.output:
+            try:
+                with open(args.output, "w") as outfile:
+                    json.dump(output_data, outfile, indent=2)
+                logging.info(f"Output successfully written to {args.output}")
+            except Exception as e:
+                logging.error(f"Error writing output to file: {e}")
+                exit(1)
+        else:
+            print(json.dumps(output_data, indent=2))
+
+
+if __name__ == "__main__":
+    main()
