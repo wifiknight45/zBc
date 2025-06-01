@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-T-Mobile Post-Paid Billing Date Calculator
+Post-Paid Bill Current Date Calculator
 ============================================
 
-This script calculates all critical billing dates for T-Mobile Post-Paid
-customers based on a given billing cycle start date (format: MM/DD/YYYY).
+This script calculates all critical billing dates for enterprise Telecommunications providers with 
+a focus upon Post-Paid Bill Current Customers.The application is based on a given billing 
+cycle start date (format: MM/DD/YYYY).
 For enhanced security, it can also encrypt the billing information using
 AES-256 in GCM mode. The design is modular and scalable, making it ideal for
 integration in larger billing systems.
