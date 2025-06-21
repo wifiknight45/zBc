@@ -29,7 +29,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(mes
 
 def calculate_billing_dates(start_date: datetime.date) -> Dict[str, datetime.date]:
     """
-    Calculate key billing dates for T-Mobile Post-Paid customers.
+    Calculate key billing dates for Bill Current/Post-Paid customers.
     
     Parameters:
         start_date (datetime.date): The billing cycle start date.
@@ -37,9 +37,11 @@ def calculate_billing_dates(start_date: datetime.date) -> Dict[str, datetime.dat
     Returns:
         dict: Billing dates including:
             - billing_cycle_start: Input date.
-            - bill_in_tlife_app: 4 days later.
+            - bill_pop_in_thlife_app: 4 days later.
+            - bill_pdf_ready: 10 days later.
             - funds_avail_pre_ap: 16 days later.
-            - autopay_draft: 18th day including the initial day (start_date + 17 days).
+            - autopay_draft: 18 days later.
+            - bill_is_due: 20 days later. 
             - billing_cycle_close: 30 days later.
             - service_suspension_risk: 37 days later.
             - number_loss_risk: 90 days later.
@@ -47,8 +49,10 @@ def calculate_billing_dates(start_date: datetime.date) -> Dict[str, datetime.dat
     return {
         "billing_cycle_start": start_date,
         "bill_in_tlife_app": start_date + datetime.timedelta(days=4),
+        "bill_pdf_ready": start_date + datetime.timedelta(days=10)
         "funds_avail_pre_ap": start_date + datetime.timedelta(days=16),
-        "autopay_draft": start_date + datetime.timedelta(days=17),  # Day 1 is the input date.
+        "autopay_draft": start_date + datetime.timedelta(days=18),  # Day 1 is the input date.
+        "bill_is_due": start_date + dateime.timedelta(days=20), 
         "billing_cycle_close": start_date + datetime.timedelta(days=30),
         "service_suspension_risk": start_date + datetime.timedelta(days=37),
         "number_loss_risk": start_date + datetime.timedelta(days=90)
