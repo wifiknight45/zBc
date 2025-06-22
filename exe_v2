@@ -1,12 +1,11 @@
 """
-Post-Paid Billing Date Calculator for Jupyter Notebooks
+postpaid Billing Date Calculator test script ----------> CURRENTLY UNDER DEVELOPMENT
 ================================================================
 
-This interactive tool calculates key billing dates for Post-Paid wireless customers 
+This interactive tool calculates key billing dates for postpaid wireless customers 
 based on a provided a billing cycle start date (MM/DD/YYYY). It also offers optional 
-AES-256 GCM encryption of the billing data. Designed for use on 64-bit Debian-based 
-ParrotOS (previous release version) running as a live USB with persistence and encryption,
-this version is tailored for interactive environments such as Jupyter and Google Colab.
+AES-256 GCM encryption of the billing data. Initially designed for use on 64-bit Debian-based 
+systems thisparticular version (v2) is tailored for interactive environments such as Jupyter, Colab, or any compatible IDE. 
 
 Requirements:
   - Python 3.7+
