@@ -1,0 +1,291 @@
+"""
+postpaid Billing Date Calculator test script beta v2 ----------> release date: 22 June 2025
+================================================================
+
+This interactive tool calculates key billing dates for postpaid wireless customers 
+based on a provided billing cycle start date (MM/DD/YYYY). It also offers optional 
+AES-256 GCM encryption of the billing data. Initially designed for use on 64-bit Debian-based 
+systems, this version (v2.1-beta) is tailored for interactive environments such as Jupyter, Colab, or any compatible IDE. 
+
+Requirements:
+  - Python 3.7+
+  - cryptography library (install via: pip install cryptography)
+"""
+
+import datetime
+import os
+import json
+import base64
+import logging
+import calendar
+from typing import Dict
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+# Configure logging for notebook cell outputs.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
+
+
+def add_months(original_date: datetime.date, months: int) -> datetime.date:
+    """
+    Add a given number of months to a date, adjusting the day if needed.
+    """
+    month = original_date.month - 1 + months
+    year = original_date.year + month // 12
+    month = month % 12 + 1
+    day = min(original_date.day, calendar.monthrange(year, month)[1])
+    return datetime.date(year, month, day)
+
+
+def calculate_billing_dates(start_date: datetime.date) -> Dict[str, datetime.date]:
+    """
+    Calculate key billing dates for Post-Paid customers.
+    
+    Parameters:
+        start_date (datetime.date): The billing cycle start date.
+        
+    Returns:
+        dict: Billing dates including:
+            - billing_cycle_start: Input date.
+            - bill_in_tlife_app: 4 days later.
+            - bill_pdf_ready: 10 days later.
+            - funds_avail_pre_ap: 16 days later.
+            - autopay_draft: 18 days later.
+            - bill_is_due: 20 days later. 
+            - billing_cycle_close: 30 days later.
+            - service_suspension_risk: 37 days later.
+            - number_loss_risk: 90 days later.
+    """
+    return {
+        "billing_cycle_start": start_date,
+        "bill_in_tlife_app": start_date + datetime.timedelta(days=4),
+        "bill_pdf_ready": start_date + datetime.timedelta(days=10),
+        "funds_avail_pre_ap": start_date + datetime.timedelta(days=16),
+        "autopay_draft": start_date + datetime.timedelta(days=18),  # Day 1 is the input date.
+        "bill_is_due": start_date + datetime.timedelta(days=20),
+        "billing_cycle_close": start_date + datetime.timedelta(days=30),
+        "service_suspension_risk": start_date + datetime.timedelta(days=37),
+        "number_loss_risk": start_date + datetime.timedelta(days=90)
+    }
+
+
+def derive_key(password: str, salt: bytes) -> bytes:
+    """
+    Derive a secure AES-256 key from a given password using PBKDF2HMAC with SHA256.
+    
+    Parameters:
+        password (str): The password.
+        salt (bytes): A randomly generated 16-byte salt.
+        
+    Returns:
+        bytes: A 32-byte key for AES-256 encryption.
+    """
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,  # 256-bit key for AES-256
+        salt=salt,
+        iterations=100000,
+    )
+    return kdf.derive(password.encode())
+
+
+def encrypt_data(key: bytes, plaintext: str) -> (bytes, bytes):
+    """
+    Encrypt plaintext using AES-256 in GCM mode.
+    
+    Parameters:
+        key (bytes): A 32-byte AES-256 key.
+        plaintext (str): The plaintext to encrypt.
+        
+    Returns:
+        tuple: (nonce, ciphertext) where nonce is 12 bytes long.
+    """
+    aesgcm = AESGCM(key)
+    nonce = os.urandom(12)  # 96-bit nonce recommended for GCM.
+    ciphertext = aesgcm.encrypt(nonce, plaintext.encode(), None)
+    return nonce, ciphertext
+
+
+def decrypt_data(key: bytes, nonce: bytes, ciphertext: bytes) -> str:
+    """
+    Decrypt ciphertext using AES-256 in GCM mode.
+    
+    Parameters:
+        key (bytes): The decryption key.
+        nonce (bytes): The nonce used at encryption time.
+        ciphertext (bytes): The data to decrypt.
+        
+    Returns:
+        str: The decrypted plaintext.
+    """
+    aesgcm = AESGCM(key)
+    plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+    return plaintext.decode()
+
+
+def encrypt_billing_data(billing_data: dict, password: str) -> dict:
+    """
+    Encrypt billing data (as JSON) using AES-256 GCM.
+    
+    Parameters:
+        billing_data (dict): The billing dates data.
+        password (str): Password to derive the encryption key.
+        
+    Returns:
+        dict: Contains base64-encoded salt, nonce, and ciphertext.
+    """
+    # Convert billing data to JSON string with dates formatted as strings.
+    billing_data_str = json.dumps({k: v.strftime("%m/%d/%Y") for k, v in billing_data.items()}, indent=2)
+    salt = os.urandom(16)  # 128-bit salt.
+    key = derive_key(password, salt)
+    nonce, ciphertext = encrypt_data(key, billing_data_str)
+    return {
+        "salt": base64.b64encode(salt).decode('utf-8'),
+        "nonce": base64.b64encode(nonce).decode('utf-8'),
+        "ciphertext": base64.b64encode(ciphertext).decode('utf-8')
+    }
+
+
+def encrypt_projection_data(projection_data: list, password: str) -> dict:
+    """
+    Encrypt projection data (a list of dictionaries) using AES-256 GCM.
+    
+    Parameters:
+        projection_data (list): The projection data with formatted dates.
+        password (str): Password to derive the encryption key.
+    
+    Returns:
+        dict: Contains base64-encoded salt, nonce, and ciphertext.
+    """
+    data_str = json.dumps(projection_data, indent=2)
+    salt = os.urandom(16)
+    key = derive_key(password, salt)
+    nonce, ciphertext = encrypt_data(key, data_str)
+    return {
+        "salt": base64.b64encode(salt).decode('utf-8'),
+        "nonce": base64.b64encode(nonce).decode('utf-8'),
+        "ciphertext": base64.b64encode(ciphertext).decode('utf-8')
+    }
+
+
+def decrypt_billing_data(encrypted_data: dict, password: str):
+    """
+    Decrypt the encrypted JSON billing data.
+    
+    Parameters:
+        encrypted_data (dict): Contains base64-encoded salt, nonce, and ciphertext.
+        password (str): Password to derive the decryption key.
+        
+    Returns:
+        The decrypted billing/projection data (dict or list).
+    """
+    salt = base64.b64decode(encrypted_data["salt"])
+    nonce = base64.b64decode(encrypted_data["nonce"])
+    ciphertext = base64.b64decode(encrypted_data["ciphertext"])
+    key = derive_key(password, salt)
+    decrypted_text = decrypt_data(key, nonce, ciphertext)
+    return json.loads(decrypted_text)
+
+
+def format_projection_data(projection_list: list, start_date: datetime.date) -> list:
+    """
+    Format a list of projection tuples into a list of dictionaries with string dates.
+    
+    Parameters:
+        projection_list (list): List of tuples (cycle, milestone, date).
+        start_date (datetime.date): The original input date.
+    
+    Returns:
+        list: List of dictionaries formatted with date strings and day offsets.
+    """
+    formatted = []
+    for cycle, milestone, date_val in projection_list:
+        formatted.append({
+            "cycle": cycle,
+            "milestone": milestone,
+            "date": date_val.strftime("%m/%d/%Y"),
+            "days_from_start": (date_val - start_date).days
+        })
+    return formatted
+
+
+def run_notebook_interface():
+    """
+    Interactive interface for use in Jupyter notebooks and Colab.
+    
+    Users can select the 'calculate' mode to compute billing dates (with projections for the next 4 months and optional encryption)
+    or 'decrypt' mode to decrypt an existing encrypted JSON file.
+    """
+    print("\n====== T-Mobile Post-Paid Billing Date Calculator ======\n")
+    mode = input("Choose mode ('calculate' or 'decrypt'): ").strip().lower()
+
+    if mode == "decrypt":
+        file_path = input("Enter the path to the encrypted JSON file: ").strip()
+        if not file_path:
+            print("No file path provided. Aborting decryption.")
+            return
+        password = input("Enter password for decryption: ").strip()
+        try:
+            with open(file_path, "r") as f:
+                encrypted_data = json.load(f)
+            decrypted_data = decrypt_billing_data(encrypted_data, password)
+            print("\nDecrypted Billing Data:")
+            print(json.dumps(decrypted_data, indent=2))
+        except Exception as e:
+            print("\nError during decryption:", e)
+
+    elif mode == "calculate":
+        date_str = input("Enter billing cycle start date (MM/DD/YYYY): ").strip()
+        try:
+            input_date = datetime.datetime.strptime(date_str, "%m/%d/%Y").date()
+        except ValueError:
+            print("Invalid date format. Please use MM/DD/YYYY.")
+            return
+
+        # Calculate projections for the current cycle and next 4 months.
+        projections = []
+        for i in range(5):  # Cycle 0 = current, cycles 1-4 = projections for next 4 months.
+            cycle_start = add_months(input_date, i)
+            cycle_data = calculate_billing_dates(cycle_start)
+            for milestone, date_val in cycle_data.items():
+                projections.append((i, milestone, date_val))
+        # Sort all milestones by number of days from the original input date.
+        projections_sorted = sorted(projections, key=lambda x: (x[2] - input_date).days)
+        formatted_projections = format_projection_data(projections_sorted, input_date)
+        
+        print("\nProjected Billing Milestones (sorted by days from start):")
+        for item in formatted_projections:
+            print(f"Cycle {item['cycle']} - {item['milestone']}: {item['date']} ({item['days_from_start']} days from start)")
+
+        encrypt_choice = input("\nDo you want to encrypt the output? (yes/no): ").strip().lower()
+        if encrypt_choice in ["yes", "y"]:
+            password = input("Enter encryption password: ").strip()
+            encrypted_output = encrypt_projection_data(formatted_projections, password)
+            print("\nEncrypted Billing Data (JSON format):")
+            print(json.dumps(encrypted_output, indent=2))
+            file_save_choice = input("\nDo you want to save the encrypted data to a file? (yes/no): ").strip().lower()
+            if file_save_choice in ["yes", "y"]:
+                file_out = input("Enter output file name (e.g., billing_encrypted.json): ").strip()
+                try:
+                    with open(file_out, "w") as f:
+                        json.dump(encrypted_output, f, indent=2)
+                    print(f"Encrypted data saved to {file_out}")
+                except Exception as e:
+                    print("Error writing to file:", e)
+        else:
+            file_save_choice = input("\nDo you want to save the calculated billing data to a file? (yes/no): ").strip().lower()
+            if file_save_choice in ["yes", "y"]:
+                file_out = input("Enter output file name (e.g., billing_data.json): ").strip()
+                try:
+                    with open(file_out, "w") as f:
+                        json.dump(formatted_projections, f, indent=2)
+                    print(f"Billing data saved to {file_out}")
+                except Exception as e:
+                    print("Error writing to file:", e)
+    else:
+        print("Invalid mode selected. Please choose either 'calculate' or 'decrypt'.")
+
+
+# Run the interactive interface (this call is intended for Jupyter Notebook / Google Colab usage)
+run_notebook_interface()
