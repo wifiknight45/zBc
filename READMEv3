@@ -1,4 +1,4 @@
-# Postpaid Billing Date Calculator (v2.1-beta)
+# Postpaid Billing Date Calculator (v3.1-beta)
 
 This interactive tool calculates key billing dates for postpaid wireless customers based on a provided billing cycle start date (MM/DD/YYYY). It now projects billing milestones for the current cycle and the next 4 months, then lists all milestones sorted from the closest to farthest away in number of days from the input date. Optional AES-256 GCM encryption of the output is supported.
 
