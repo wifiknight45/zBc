@@ -2,6 +2,12 @@
 
 please note that the latest updates shall be listed first etc 
 
+v3 release 22 june 2025
+Added Projections: Introduced projections for the next 4 months by computing additional billing cycles using a new helper function (add_months).
+Sorted Output: Aggregated all milestones (current plus projected cycles) and sorted them by the number of days from the input start date.
+Helper Functions: Added add_months, format_projection_data, and encrypt_projection_data to support the new projections and ensure proper date formatting for encryption and display.
+Encryption Update: Modified encryption logic in “calculate” mode to handle the projection data structure.
+
 v2 update 22 june 2025
 Fixed Syntax Issue: Added the missing comma after "bill_pdf_ready" in the billing dates dictionary.
 Corrected Typo: Replaced the typo dateime.timedelta with datetime.timedelta in the bill_is_due calculation.
