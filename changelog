@@ -1,0 +1,8 @@
+## CHANGELOG
+
+please note that the latest updates shall be listed first etc 
+
+v2 update 22 june 2025
+Fixed Syntax Issue: Added the missing comma after "bill_pdf_ready" in the billing dates dictionary.
+Corrected Typo: Replaced the typo dateime.timedelta with datetime.timedelta in the bill_is_due calculation.
+Docstring Update: Updated the docstring key to match "bill_in_tlife_app".
