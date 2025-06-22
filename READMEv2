@@ -1,0 +1,31 @@
+# Postpaid Billing Date Calculator (v2.1)
+
+This interactive tool calculates key billing dates for postpaid wireless customers based on a provided billing cycle start date (MM/DD/YYYY). The script also optionally encrypts the billing data using AES-256 GCM encryption.
+
+## Features
+- Computes billing dates including:
+  - Billing Cycle Start
+  - Bill display in Tlife App (4 days later)
+  - Bill PDF Ready (10 days later)
+  - Funds Available Pre-Autopay (16 days later)
+  - Autopay Draft (18 days later)
+  - Bill Is Due (20 days later)
+  - Billing Cycle Close (30 days later)
+  - Service Suspension Risk (37 days later)
+  - Number Loss Risk (90 days later)
+- Option to encrypt the billing data.
+- Interactive interface designed primarily for Jupyter Notebooks, Google Colab, or compatible IDEs.
+
+## Requirements
+- Python 3.7 or higher
+- `cryptography` library (install via: `pip install cryptography`)
+
+## Changelog: v2.1
+- Fixed a syntax error by adding a comma after `"bill_pdf_ready"` in the `calculate_billing_dates()` function.
+- Corrected a typo (`dateime` → `datetime`) in the calculation of `"bill_is_due"`.
+- Updated the docstring to reflect the correct key naming for billing date entries.
+
+## Usage
+1. Run the script in your interactive environment.
+2. Select the mode: `calculate` to compute billing dates or `decrypt` to decrypt an existing encrypted JSON file.
+3. Follow the on-screen prompts to input the necessary data and optionally save the results to a file.
