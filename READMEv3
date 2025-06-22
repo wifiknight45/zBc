@@ -1,0 +1,36 @@
+# Postpaid Billing Date Calculator (v2.1-beta)
+
+This interactive tool calculates key billing dates for postpaid wireless customers based on a provided billing cycle start date (MM/DD/YYYY). It now projects billing milestones for the current cycle and the next 4 months, then lists all milestones sorted from the closest to farthest away in number of days from the input date. Optional AES-256 GCM encryption of the output is supported.
+
+## Features
+- Computes billing milestones including:
+  - Billing Cycle Start
+  - Bill in Tlife App (4 days later)
+  - Bill PDF Ready (10 days later)
+  - Funds Available Pre-Autopay (16 days later)
+  - Autopay Draft (18 days later)
+  - Bill Is Due (20 days later)
+  - Billing Cycle Close (30 days later)
+  - Service Suspension Risk (37 days later)
+  - Number Loss Risk (90 days later)
+- Generates projections for the next 4 months (total of 5 cycles: current + 4 projections).
+- Displays all milestones sorted by the number of days from the input date.
+- Optional encryption of billing/projection data using AES-256 GCM.
+- Interactive interface designed for Jupyter Notebooks, Google Colab, or any compatible IDE.
+
+## Requirements
+- Python 3.7 or higher
+- `cryptography` library (install via: `pip install cryptography`)
+
+## Changelog: v3.1-beta
+- Added projections for the next 4 months using an `add_months` helper function.
+- Aggregated all milestones (current and projected) and printed them sorted by days from the start date.
+- Introduced helper functions: `add_months`, `format_projection_data`, and `encrypt_projection_data`.
+- Updated the encryption workflow to support the new projections.
+
+## Usage
+1. Run the script in your interactive environment.
+2. When prompted in "calculate" mode, input the billing cycle start date in MM/DD/YYYY format.
+3. The system computes the billing milestones for the current cycle and the next 4 months, then displays them sorted by the number of days from the start date.
+4. Optionally, choose to encrypt the output and/or save it to a file.
+5. To decrypt a previously saved encrypted file, use the "decrypt" mode.
