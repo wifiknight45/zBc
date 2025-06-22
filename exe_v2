@@ -1,15 +1,15 @@
 """
-postpaid Billing Date Calculator test script ----------> CURRENTLY UNDER DEVELOPMENT
+postpaid Billing Date Calculator test script beta v2 ---------->release date: 22 june 2025
 ================================================================
 
 This interactive tool calculates key billing dates for postpaid wireless customers 
-based on a provided a billing cycle start date (MM/DD/YYYY). It also offers optional 
+based on a provided billing cycle start date (MM/DD/YYYY). It also offers optional 
 AES-256 GCM encryption of the billing data. Initially designed for use on 64-bit Debian-based 
-systems thisparticular version (v2) is tailored for interactive environments such as Jupyter, Colab, or any compatible IDE. 
+systems, this version (v2.1) is tailored for interactive environments such as Jupyter, Colab, or any compatible IDE. 
 
 Requirements:
   - Python 3.7+
-  - cryptography library (install via: !pip install cryptography)
+  - cryptography library (install via: pip install cryptography)
 """
 
 import datetime
@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(mes
 
 def calculate_billing_dates(start_date: datetime.date) -> Dict[str, datetime.date]:
     """
-    Calculate key billing dates for Bill Current/Post-Paid customers.
+    Calculate key billing dates for Post-Paid customers.
     
     Parameters:
         start_date (datetime.date): The billing cycle start date.
@@ -36,7 +36,7 @@ def calculate_billing_dates(start_date: datetime.date) -> Dict[str, datetime.dat
     Returns:
         dict: Billing dates including:
             - billing_cycle_start: Input date.
-            - bill_pop_in_thlife_app: 4 days later.
+            - bill_in_tlife_app: 4 days later.
             - bill_pdf_ready: 10 days later.
             - funds_avail_pre_ap: 16 days later.
             - autopay_draft: 18 days later.
@@ -48,10 +48,10 @@ def calculate_billing_dates(start_date: datetime.date) -> Dict[str, datetime.dat
     return {
         "billing_cycle_start": start_date,
         "bill_in_tlife_app": start_date + datetime.timedelta(days=4),
-        "bill_pdf_ready": start_date + datetime.timedelta(days=10)
+        "bill_pdf_ready": start_date + datetime.timedelta(days=10),
         "funds_avail_pre_ap": start_date + datetime.timedelta(days=16),
         "autopay_draft": start_date + datetime.timedelta(days=18),  # Day 1 is the input date.
-        "bill_is_due": start_date + dateime.timedelta(days=20), 
+        "bill_is_due": start_date + datetime.timedelta(days=20),
         "billing_cycle_close": start_date + datetime.timedelta(days=30),
         "service_suspension_risk": start_date + datetime.timedelta(days=37),
         "number_loss_risk": start_date + datetime.timedelta(days=90)
