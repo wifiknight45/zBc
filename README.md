@@ -3,12 +3,7 @@
 ---
 
 ### Summary
-
-# zBc – A lightweight yet powerful Python script designed to streamline key billing date calculations for post-paid wireless customers. By taking a single input date, zBc intelligently determines crucial billing milestones within the carrier's cycle, such as billing start dates, due dates, grace periods, and payment deadlines, ensuring users stay ahead of their financial obligations.
-
-Sec info: For those who prioritize security, zBc offers AES-256 GCM encryption, providing a highly secure method to handle sensitive billing data without compromising performance. Built with simplicity and efficiency in mind, this script eliminates the guesswork in billing cycles while keeping operations smooth and automated.
-
-Whether you're a consumer looking for better billing clarity or an Account Associate aiming to optimize workflow, zBc is a reliable, low-footprint solution that gets the job done with minimal setup.
+zBc – A lightweight yet powerful Python script designed to streamline key billing date calculations for post-paid wireless customers. By taking a single input date, zBc intelligently determines crucial billing milestones within the carrier's cycle, such as billing start dates, due dates, grace periods, and payment deadlines, ensuring users stay ahead of their financial obligation. For those who prioritize security, zBc offers AES-256 GCM encryption, providing a highly secure method to handle sensitive billing data without compromising performance. Built with simplicity and efficiency in mind, this script eliminates the guesswork in billing cycles while keeping operations smooth and automated. Whether you're a consumer looking for better billing clarity or an Account Associate aiming to optimize workflow, zBc is a reliable, low-footprint solution that gets the job done with minimal setup.
 
 (v3.1‑beta)
 An interactive Python tool for calculating key billing dates for postpaid wireless customers based on a user‑provided billing cycle start date (MM/DD/YYYY). Optionally supports AES‑256‑GCM encryption of billing data for secure storage or transmission.
@@ -35,13 +30,13 @@ Notebook‑friendly logging for clear output in interactive environments.
 
 Configurable password‑based key derivation using PBKDF2‑HMAC‑SHA256.
 
-📦 Requirements
+Requirements
 Python: 3.7+
 
 Libraries:
+cryptography 
 
-cryptography Install with:
-
+Install with:
 bash
 pip install cryptography
 
@@ -70,7 +65,8 @@ from billing_calculator import encrypt_billing_data
 
 encrypted = encrypt_billing_data(dates, password="my_secure_password")
 print(encrypted)
-📋 Example Output
+
+Example Output
 python
 {
   'billing_cycle_start': datetime.date(2025, 6, 22),
@@ -83,11 +79,10 @@ python
   'service_suspension_risk': datetime.date(2025, 7, 29),
   'number_loss_risk': datetime.date(2025, 9, 20)
 }
-🔐 Security Notes
+
+Security Notes
 Uses PBKDF2‑HMAC‑SHA256 for password‑based AES‑256 key derivation.
-
 Uses 12‑byte nonce for AES‑GCM encryption (recommended size).
-
 Always store salts, nonces, and ciphertext securely; never reuse nonces for the same key.
 
 🧪 Testing
