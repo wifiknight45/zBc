@@ -1,5 +1,5 @@
 
- ### zBc_3.0
+ ### zBc_3.0v ie Postpaid Billing Date Calculator Script
 ---
 
 ### Summary
@@ -10,21 +10,85 @@ Sec info: For those who prioritize security, zBc offers AES-256 GCM encryption, 
 
 Whether you're a consumer looking for better billing clarity or an Account Associate aiming to optimize workflow, zBc is a reliable, low-footprint solution that gets the job done with minimal setup.
 
-enhancements
-- Scalability: The code is modular and uses the `argparse` library for command-line flexibility. Functions like `calculate_billing_dates` can be imported into larger systems.
-- Security: The script implements AES-256 encryption (using AESGCM) and secure key derivation via PBKDF2.
-- Open Source & Extensible: Written in Python with clear documentation and inline comments to help opensource developers integrate or extend functionality in enterprise telecomunications applications. 
-- Telecommunications Tailoring: Specifically configured to calculate the billing milestones for post-paid (i.e. bill current) customers.
+(v3.1‑beta)
+An interactive Python tool for calculating key billing dates for postpaid wireless customers based on a user‑provided billing cycle start date (MM/DD/YYYY). Optionally supports AES‑256‑GCM encryption of billing data for secure storage or transmission.
 
-This script, it's source code, any related applications or tools are licensed under the Apache 2.0 License. Please see the file
-titled LICENSE for additional information. 
+This beta version has been adapted for interactive environments such as Jupyter Notebooks, Google Colab, or any compatible IDE.
 
- **This script is just a helpful tool—nothing official, no corporate ties. It’s here to make life a little easier by highlighting key billing dates, but it comes as is—no promises, no guarantees. Use it at your own discretion, and if you need the real deal on billing, always check with your provider. Enjoy, and keep things easy. ;-)**
+Features
+Billing date calculation: 
+Automatically computes important dates such as:
+Bill availability in app
+Bill PDF readiness
+Funds availability pre‑AutoPay
+AutoPay draft date
+Payment due date
+Billing cycle close
+Service suspension risk
+Number loss risk
 
-Developer contact info: 
-github: https://github.com/wifiknight45
-email: vichy6@proton.me
+Date‑safe calculations: 
+Correctly handles month/day rollovers.
+Optional AES‑256‑GCM encryption of generated billing date data.
 
+Notebook‑friendly logging for clear output in interactive environments.
 
+Configurable password‑based key derivation using PBKDF2‑HMAC‑SHA256.
 
- 
+📦 Requirements
+Python: 3.7+
+
+Libraries:
+
+cryptography Install with:
+
+bash
+pip install cryptography
+
+Installation
+Clone this repository and install dependencies:
+
+bash
+git clone https://github.com/wifiknight45/zBc.git
+cd <zBc>
+pip install -r requirements.txt
+
+Code
+cryptography>=41.0.0
+🛠 Usage
+1. Import and run in Python
+python
+import datetime
+from billing_calculator import calculate_billing_dates
+
+start_date = datetime.date(2025, 6, 22)  # Example: Billing cycle start
+dates = calculate_billing_dates(start_date)
+print(dates)
+2. Enable encryption
+python
+from billing_calculator import encrypt_billing_data
+
+encrypted = encrypt_billing_data(dates, password="my_secure_password")
+print(encrypted)
+📋 Example Output
+python
+{
+  'billing_cycle_start': datetime.date(2025, 6, 22),
+  'bill_in_tlife_app': datetime.date(2025, 6, 26),
+  'bill_pdf_ready': datetime.date(2025, 7, 2),
+  'funds_avail_pre_ap': datetime.date(2025, 7, 8),
+  'autopay_draft': datetime.date(2025, 7, 10),
+  'bill_is_due': datetime.date(2025, 7, 12),
+  'billing_cycle_close': datetime.date(2025, 7, 22),
+  'service_suspension_risk': datetime.date(2025, 7, 29),
+  'number_loss_risk': datetime.date(2025, 9, 20)
+}
+🔐 Security Notes
+Uses PBKDF2‑HMAC‑SHA256 for password‑based AES‑256 key derivation.
+
+Uses 12‑byte nonce for AES‑GCM encryption (recommended size).
+
+Always store salts, nonces, and ciphertext securely; never reuse nonces for the same key.
+
+🧪 Testing
+You can quickly test the calculator and encryption in an interactive session (Jupyter/Colab) or standard Python REPL.
